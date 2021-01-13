@@ -1,0 +1,45 @@
+function Clear-ADManagerAttribute {
+    #Requires -Modules activedirectory
+    #Requires -RunAsAdministrator
+    [cmdletbinding(SupportsShouldProcess = $True, ConfirmImpact = 'high')]
+    Param(
+        [Parameter(
+            Mandatory = $true,
+            Position = 0,
+            ValueFromPipeline = $false)]
+        [array]$user
+    )
+    Begin {
+        # Optional preprocessing of the function that will only run once per call of the function
+        $userlist = @()
+        try {
+            foreach ($u in $user) {
+                if ($u -contains "@") {
+                    $userlist += get-aduser -filter "userprincipalname -eq $u" -erroraction stop
+                }
+                else {
+                    $userlist += get-aduser -identity $u -erroraction stop
+                }
+            }
+        }
+        catch {
+            Write-Warning "Error encountered when checking user: $u. Please verify the user is valid"
+            $PSCmdlet.ThrowTerminatingError($_)
+        }
+    }
+    Process {
+        # Specify the code that will continually execute on every object that might be passed to the function. 
+        # NOTE: The process block behaves differently depending on how the parameter is passed.
+        #       With PIPELINE input, powershell calls your process block once FOREACH input object.
+        #       With Parameter input, powershell only ever calls your process block ONCE. (You'll need a foreach to handle a passed array)
+        foreach ($aduser in $userlist) {
+            if ($PSCmdlet.ShouldProcess($aduser, "Clear Manager")) {
+                $aduser | set-aduser -Clear Manager -erroraction stop -confirm:$false -whatif:$WhatIfPreference -verbose:$verbosepreference
+            }
+        }
+
+    }
+    End {
+        # Optional post processing of the function hat will only run once per call of the function.
+    }
+}
